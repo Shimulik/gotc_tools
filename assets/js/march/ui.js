@@ -437,8 +437,7 @@ globalThis.MS = globalThis.MS || {};
   function renderBands() {
     if (!lastResult || !lastResult.merged) return;
 
-    const typed = parseSize($("msMarchSize").value);
-    const size  = typed === null ? null : typed / (1 + inherent());
+    const size = parseSize($("msMarchSize").value);
     const merged = lastResult.merged;
 
     const atIndex = size === null ? -1
