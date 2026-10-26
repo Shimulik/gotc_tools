@@ -132,10 +132,6 @@ globalThis.MS = globalThis.MS || {};
               : `<span class="piece-img is-empty" aria-hidden="true">+</span>`}
       </button>
 
-      <!-- The name sits outside the button so the art can be its own tall
-           column beside the stacked controls. It still swaps on click via the
-           delegated data-swap handler; the button above is the keyboard route,
-           so there is one tab stop rather than two for the same action. -->
       <span class="piece-name" data-swap="${row.id}">${esc(label)}</span>
 
       <div class="piece-controls">
@@ -437,15 +433,23 @@ globalThis.MS = globalThis.MS || {};
   function renderBands() {
     if (!lastResult || !lastResult.merged) return;
 
-    const size = parseSize($("msMarchSize").value);
+    const typed = parseSize($("msMarchSize").value);
+    const bonus = inherent();
+    const size  = typed === null ? null : typed / (1 + bonus);
     const merged = lastResult.merged;
+
+    const toInput = (x) => x * (1 + bonus);
 
     const atIndex = size === null ? -1
       : merged.findIndex(([lo, hi]) => size >= lo && (!isFinite(hi) || size < hi));
 
     $("msOutput").innerHTML = merged.map(([lo, hi, combo], i) => {
-      const range = isFinite(hi) ? `${fmt(lo)} to ${fmt(hi)}` : `${fmt(lo)} and above`;
+      const range = isFinite(hi)
+        ? `${fmt(toInput(lo))} to ${fmt(toInput(hi))}`
+        : `${fmt(toInput(lo))} and above`;
       const here = i === atIndex;
+
+      const gearPercent = combo.total_percent - bonus;
 
       const projected = size === null ? null : combo.slope * size + combo.intercept;
 
@@ -453,12 +457,12 @@ globalThis.MS = globalThis.MS || {};
         <div class="band-head">
           ${here ? `<span class="band-flag">You are here</span>` : ""}
           <span class="band-range">${range}</span>
-          <span class="band-meta">+${(combo.total_percent * 100).toFixed(2)}% · ${fmt(combo.total_flat)} flat</span>
+          <span class="band-meta">+${(gearPercent * 100).toFixed(2)}% · ${fmt(combo.total_flat)} flat</span>
         </div>
         ${projected === null ? "" : `<div class="band-yours${here ? " is-best" : ""}">
           <span class="yours-label">Your march with this gear</span>
           <span class="yours-value">${fmt(projected)}</span>
-          <span class="yours-delta">+${fmt(projected - size)}</span>
+          <span class="yours-delta">+${fmt(projected - typed)}</span>
         </div>`}
         <div class="band-gear">${gearHtml(combo)}</div>
       </div>`;
@@ -471,10 +475,14 @@ globalThis.MS = globalThis.MS || {};
       } else {
         note.hidden = false;
         note.textContent = atIndex === -1
-          ? `A march of ${fmt(size)} falls outside every range below.`
-          : `A march of ${fmt(size)} sits in range ${atIndex + 1} of ${merged.length}.`;
+          ? `A march of ${fmt(typed)} falls outside every range below.`
+          : `A march of ${fmt(typed)} sits in range ${atIndex + 1} of ${merged.length}.`;
       }
     }
+  }
+
+  function resolveIfShowing() {
+    if (lastResult && !$("msResults").hidden) run();
   }
 
   function run() {
@@ -765,6 +773,7 @@ globalThis.MS = globalThis.MS || {};
         if (at === -1) state.bonuses.push(id); else state.bonuses.splice(at, 1);
         persist();
         renderBonuses();
+        resolveIfShowing();
         return;
       }
 
@@ -818,6 +827,7 @@ globalThis.MS = globalThis.MS || {};
     $("msScenario").addEventListener("change", () => {
       state.scenario = $("msScenario").value;
       persist();
+      resolveIfShowing();
     });
 
     $("msRun").addEventListener("click", run);
